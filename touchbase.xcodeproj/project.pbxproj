@@ -16,9 +16,23 @@
 		68EEEC252E80DBB4009BC6F8 /* touchbase.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = touchbase.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		68023D442E862AE3000FB6E9 /* Exceptions for "touchbase" folder in "touchbase" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				readme.md,
+				Views/readme.md,
+			);
+			target = 68EEEC242E80DBB4009BC6F8 /* touchbase */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		68EEEC272E80DBB4009BC6F8 /* touchbase */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				68023D442E862AE3000FB6E9 /* Exceptions for "touchbase" folder in "touchbase" target */,
+			);
 			path = touchbase;
 			sourceTree = "<group>";
 		};
