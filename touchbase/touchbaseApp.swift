@@ -24,7 +24,7 @@ struct touchbaseApp: App {
     
     var body: some Scene {
         WindowGroup {
-            AuthView()
+            LoginView()
         }
     }
 }
