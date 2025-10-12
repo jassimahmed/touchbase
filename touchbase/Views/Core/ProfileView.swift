@@ -35,7 +35,7 @@ struct ProfileView: View {
       
       // Add Friend button (only if viewing someone else)
       if !isCurrentUser {
-        AddRelationshipButton()
+        AddRelationshipButton(user: user)
       }
       
       Spacer()

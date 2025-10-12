@@ -8,6 +8,8 @@
 import SwiftUI
 
 struct AddRelationshipButton: View {
+  let user: User
+  
   @State private var isExpanded = false
   @State private var requestSentType: String? = nil // "Friend" or "Family"
   
@@ -29,16 +31,22 @@ struct AddRelationshipButton: View {
         // Show two choices
         VStack(spacing: 10) {
           Button("Friend") {
-            withAnimation(.spring()) {
-              requestSentType = "Friend"
-              isExpanded = false
+            UserConnectionService.sendConnectionRequest(toUserId: user.id, type: "Friend") { success in
+              if success {
+                requestSentType = "Friend"
+              }
             }
+            isExpanded = false
           }
           .buttonStyle(AddChoiceStyle(color: .blue))
           
           Button("Family") {
             withAnimation(.spring()) {
-              requestSentType = "Family"
+              UserConnectionService.sendConnectionRequest(toUserId: user.id, type: "Family") { success in
+                if success {
+                  requestSentType = "Family"
+                }
+              }
               isExpanded = false
             }
           }
@@ -85,8 +93,8 @@ struct AddChoiceStyle: ButtonStyle {
   }
 }
 
-#Preview {
-  AddRelationshipButton()
-    .padding()
-    .previewLayout(.sizeThatFits)
-}
+//#Preview {
+//  AddRelationshipButton()
+//    .padding()
+//    .previewLayout(.sizeThatFits)
+//}
