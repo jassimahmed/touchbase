@@ -9,3 +9,7 @@ MyApp/
  ┃ ┗ 📂 src/iosMain/        ← iOS-specific code (if needed)
  ┣ 📂 androidApp/           ← Jetpack Compose UI (Kotlin)
  ┗ 📂 iosApp/               ← SwiftUI UI (Swift)
+
+# Notes on Swift
+
+A view is anything that is shown on the screen. 

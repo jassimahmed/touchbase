@@ -21,7 +21,6 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				readme.md,
-				Views/readme.md,
 			);
 			target = 68EEEC242E80DBB4009BC6F8 /* touchbase */;
 		};

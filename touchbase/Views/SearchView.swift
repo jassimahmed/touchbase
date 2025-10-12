@@ -1,12 +1,6 @@
 import SwiftUI
 import FirebaseFirestore
 
-struct User: Identifiable, Hashable {
-  let id: String
-  let name: String
-  let username: String
-}
-
 struct SearchView: View {
   @State private var searchText: String = ""
   @State private var users: [User] = []
@@ -22,23 +16,23 @@ struct SearchView: View {
             .foregroundStyle(.secondary)
         } else {
           List(users) { user in
-              NavigationLink(destination: ProfileView(user: user, isCurrentUser: false)) {
-                  HStack(spacing: 12) {
-                      Image(systemName: "person.crop.circle.fill")
-                          .resizable()
-                          .frame(width: 40, height: 40)
-                          .foregroundStyle(.blue)
-                      
-                      VStack(alignment: .leading, spacing: 2) {
-                          Text(user.name)
-                              .font(.headline)
-                          Text(user.username)
-                              .font(.subheadline)
-                              .foregroundStyle(.secondary)
-                      }
-                  }
-                  .padding(.vertical, 4)
+            NavigationLink(destination: ProfileView(user: user, isCurrentUser: false)) {
+              HStack(spacing: 12) {
+                Image(systemName: "person.crop.circle.fill")
+                  .resizable()
+                  .frame(width: 40, height: 40)
+                  .foregroundStyle(.blue)
+                
+                VStack(alignment: .leading, spacing: 2) {
+                  Text(user.name)
+                    .font(.headline)
+                  Text(user.username)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                }
               }
+              .padding(.vertical, 4)
+            }
           }
           .listStyle(.plain)
         }
