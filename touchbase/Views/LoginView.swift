@@ -1,5 +1,5 @@
 //
-//  AuthView.swift
+//  LoginView.swift
 //  touchbase
 //
 //  Created by Jassim Ahmed on 2025-09-21.
@@ -7,10 +7,13 @@
 
 import SwiftUI
 import FirebaseAuth
+import FirebaseFirestore
 
 struct LoginView: View {
   @State private var email = ""
   @State private var password = ""
+  @State private var name = ""
+  @State private var username = ""
   @State private var isLogin = true
   @State private var errorMessage = ""
   @State private var isSignedIn = false
@@ -18,16 +21,25 @@ struct LoginView: View {
   var body: some View {
     if isSignedIn {
       // Navigate to ChatView
-      let currentUID = "omsNcMGNr2RYbZkwJFVDLF2bheI2"
+      let currentUID = Auth.auth().currentUser?.uid ?? ""
       let otherUID = "bHRyshjwUTewIjApF9b5CVbDIAg2"
       let chatID = generateChatID(currentUID: currentUID, otherUID: otherUID)
       NavigationView()
         .previewDisplayName("TabView with ChatListView")
-      //      ChatView(chatID: chatID)
+//      ChatView(chatID: chatID)
     } else {
       VStack(spacing: 16) {
         Text(isLogin ? "Login" : "Sign Up")
           .font(.largeTitle).bold()
+        
+        if !isLogin {
+          TextField("Full Name", text: $name)
+            .textFieldStyle(RoundedBorderTextFieldStyle())
+          
+          TextField("Username", text: $username)
+            .textFieldStyle(RoundedBorderTextFieldStyle())
+            .autocapitalization(.none)
+        }
         
         TextField("Email", text: $email)
           .textFieldStyle(RoundedBorderTextFieldStyle())
@@ -80,11 +92,38 @@ struct LoginView: View {
   }
   
   private func signUp() {
+    guard !name.isEmpty, !username.isEmpty else {
+      errorMessage = "Please enter name and username"
+      return
+    }
+    
     Auth.auth().createUser(withEmail: email, password: password) { result, error in
       if let error = error {
         errorMessage = error.localizedDescription
-      } else {
-        isSignedIn = true
+        return
+      }
+      
+      guard let uid = result?.user.uid else {
+        errorMessage = "Unable to get user ID"
+        return
+      }
+      
+      // Create Firestore user document
+      let db = Firestore.firestore()
+      let userData: [String: Any] = [
+        "uid": uid,
+        "name": name,
+        "username": username,
+        "email": email,
+        "createdAt": Timestamp()
+      ]
+      
+      db.collection("users").document(uid).setData(userData) { error in
+        if let error = error {
+          errorMessage = "Failed to save user data: \(error.localizedDescription)"
+        } else {
+          isSignedIn = true
+        }
       }
     }
   }
