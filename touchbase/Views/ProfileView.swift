@@ -8,57 +8,58 @@
 import SwiftUI
 
 struct ProfileView: View {
-    // State for Add Friend button
+    let user: User        // The user being displayed
+    let isCurrentUser: Bool
+    
     @State private var isFriendAdded = false
-
-    var profileImage: String = "profile_pic" // Your image asset
-    var name: String = "John Doe"
-    var username: String = "@johndoe"
     
     var body: some View {
-        HStackLayout(alignment: .center, spacing: 16) {
+        VStack(spacing: 20) {
             // Profile Image
-            Image(profileImage)
+            Image("profile_pic") // Replace later with remote image if needed
                 .resizable()
                 .aspectRatio(contentMode: .fill)
-                .frame(width: 70, height: 70)
+                .frame(width: 100, height: 100)
                 .clipShape(Circle())
                 .shadow(radius: 4)
                 .background(.ultraThinMaterial, in: Circle())
             
-            // Name and Username
-            VStackLayout(alignment: .leading, spacing: 2) {
-                Text(name)
-                    .font(.title3.bold())
-                Text(username)
+            // Name and username
+            VStack(spacing: 4) {
+                Text(user.name)
+                    .font(.title2.bold())
+                Text("@\(user.username)")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
             
-            Spacer()
-            
-            // Add Friend Button
-            Button {
-                isFriendAdded.toggle()
-            } label: {
-                Text(isFriendAdded ? "Friend Added" : "Add Friend")
-                    .font(.subheadline.bold())
-                    .padding(.vertical, 8)
-                    .padding(.horizontal, 16)
-                    .background(isFriendAdded ? .green.opacity(0.8) : .blue.opacity(0.8))
-                    .foregroundStyle(.white)
-                    .cornerRadius(12)
-                    .shadow(radius: 2)
+            // Add Friend button (only if viewing someone else)
+            if !isCurrentUser {
+                Button {
+                    isFriendAdded.toggle()
+                } label: {
+                    Text(isFriendAdded ? "Friend Added" : "Add Friend")
+                        .font(.subheadline.bold())
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, 20)
+                        .background(isFriendAdded ? .green.opacity(0.8) : .blue.opacity(0.8))
+                        .foregroundStyle(.white)
+                        .cornerRadius(12)
+                        .shadow(radius: 2)
+                }
             }
+            
+            Spacer()
         }
         .padding()
-        .background(.regularMaterial)
-        .cornerRadius(20)
-        .padding()
+        .navigationTitle(user.name)
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
 #Preview {
-    ProfileView()
-        .previewLayout(.sizeThatFits)
+    ProfileView(
+        user: User(id: "1", name: "John Doe", username: "johndoe"),
+        isCurrentUser: false
+    )
 }

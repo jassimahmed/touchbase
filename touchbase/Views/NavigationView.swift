@@ -9,11 +9,21 @@ import SwiftUI
 
 struct NavigationView: View {
   @State private var selectedTab: Int = 1
+  @State private var currentUser: User? = nil
+  @State private var isLoadingUser = true
   
   var body: some View {
     TabView(selection: $selectedTab) {
+      
       NavigationStack {
-        ProfileView()
+        if isLoadingUser {
+          ProgressView("Loading profile…")
+        } else if let user = currentUser {
+          ProfileView(user: user, isCurrentUser: true)
+        } else {
+          Text("No logged-in user found")
+            .foregroundStyle(.secondary)
+        }
       }
       .tabItem {
         Label("Profile", systemImage: "person.crop.circle")
@@ -36,14 +46,15 @@ struct NavigationView: View {
       }
       .tag(2)
     }
-    // iOS 26 enhancements
-    .tabBarMinimizeBehavior(.onScrollDown)
-    .tabViewBottomAccessory {
-      // If you ever want an accessory (like a mini player), you can insert it here
-      // For now you can leave this out or put a placeholder
-      EmptyView()
+    .onAppear {
+      fetchCurrentUser()
+    }
+  }
+  
+  private func fetchCurrentUser() {
+    AuthService.getCurrentUser { user in
+      self.currentUser = user
+      self.isLoadingUser = false
     }
   }
 }
-
-
