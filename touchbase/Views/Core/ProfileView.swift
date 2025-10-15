@@ -6,12 +6,14 @@
 //
 
 import SwiftUI
+import FirebaseAuth
 
 struct ProfileView: View {
   let user: User        // The user being displayed
   let isCurrentUser: Bool
   
   @State private var isFriendAdded = false
+  @State private var showLoginView = false
   
   var body: some View {
     VStack(spacing: 20) {
@@ -36,6 +38,19 @@ struct ProfileView: View {
       // Add Friend button (only if viewing someone else)
       if !isCurrentUser {
         AddRelationshipButton(user: user)
+      } else {
+        // Sign Out Button (only for current user)
+        Button(action: signOut) {
+          Text("Sign Out")
+            .font(.headline)
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(Color.red)
+            .cornerRadius(12)
+            .shadow(radius: 3)
+        }
+        .padding(.horizontal)
       }
       
       Spacer()
@@ -43,12 +58,24 @@ struct ProfileView: View {
     .padding()
     .navigationTitle(user.name)
     .navigationBarTitleDisplayMode(.inline)
+    .fullScreenCover(isPresented: $showLoginView) {
+      LoginView()
+    }
+  }
+  
+  private func signOut() {
+    do {
+      try Auth.auth().signOut()
+      showLoginView = true
+    } catch {
+      print("Error signing out: \(error.localizedDescription)")
+    }
   }
 }
 
 #Preview {
   ProfileView(
     user: User(id: "1", name: "John Doe", username: "johndoe"),
-    isCurrentUser: false
+    isCurrentUser: true
   )
 }
