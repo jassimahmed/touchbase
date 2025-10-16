@@ -14,6 +14,7 @@ struct ProfileView: View {
   
   @State private var isFriendAdded = false
   @State private var showLoginView = false
+  @State private var showNotifications = false
   
   var body: some View {
     VStack(spacing: 20) {
@@ -58,6 +59,23 @@ struct ProfileView: View {
     .padding()
     .navigationTitle(user.name)
     .navigationBarTitleDisplayMode(.inline)
+    // MARK: - Toolbar Button
+    .toolbar {
+      if isCurrentUser {
+        ToolbarItem(placement: .navigationBarTrailing) {
+          Button(action: {
+            showNotifications = true
+          }) {
+            Image(systemName: "envelope.badge")
+              .font(.title2)
+          }
+        }
+      }
+    }
+    // MARK: - Navigation to Notifications
+    .navigationDestination(isPresented: $showNotifications) {
+      NotificationView()
+    }
     .fullScreenCover(isPresented: $showLoginView) {
       LoginView()
     }

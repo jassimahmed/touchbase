@@ -43,22 +43,31 @@ struct UserConnectionService {
   }
   
   
-  //  static func fetchPendingRequests(for userId: String, completion: @escaping ([Connection]) -> Void) {
-  //
-  //    // fix this later
-  //      db.collection("connections")
-  //        .whereField("toUserId", isEqualTo: userId)
-  //        .whereField("status", isEqualTo: "pending")
-  //        .getDocuments { snapshot, error in
-  //            let connections = snapshot?.documents.compactMap { doc -> Connection? in
-  //                let data = doc.data()
-  //                guard let fromUserId = data["fromUserId"] as? String,
-  //                      let type = data["type"] as? String,
-  //                      let status = data["status"] as? String else { return nil }
-  //                return Connection(id: doc.documentID, fromUserId: fromUserId, toUserId: userId, type: type, status: status)
-  //            } ?? []
-  //            completion(connections)
-  //        }
-  //  }
-  
+  static func fetchPendingRequests(for userId: String, completion: @escaping ([Connection]) -> Void) {
+    db.collection("connections")
+      .whereField("toUserId", isEqualTo: userId)
+      .whereField("status", isEqualTo: "pending")
+      .getDocuments { snapshot, error in
+        let connections = snapshot?.documents.compactMap { doc -> Connection? in
+          let data = doc.data()
+          guard let fromUserId = data["fromUserId"] as? String,
+                let type = data["type"] as? String,
+                let status = data["status"] as? String,
+                let timestamp = (data["timestamp"] as? Timestamp)?.dateValue() else {
+            return nil
+          }
+          
+          return Connection(
+            id: doc.documentID,
+            fromUserId: fromUserId,
+            toUserId: userId,
+            type: type,
+            status: status,
+            timestamp: timestamp
+          )
+        } ?? []
+        
+        completion(connections)
+      }
+  }
 }
