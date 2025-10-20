@@ -25,7 +25,7 @@ struct NavigationView: View {
             .foregroundStyle(.secondary)
         }
       }
-      .tabItem {
+      .tabItem { 
         Label("Profile", systemImage: "person.crop.circle")
       }
       .tag(0)

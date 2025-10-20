@@ -1,13 +1,4 @@
-//
-//  LoginView.swift
-//  touchbase
-//
-//  Created by Jassim Ahmed on 2025-09-21.
-//
-
 import SwiftUI
-import FirebaseAuth
-import FirebaseFirestore
 
 struct LoginView: View {
   @State private var email = ""
@@ -20,13 +11,11 @@ struct LoginView: View {
   
   var body: some View {
     if isSignedIn {
-      // Navigate to ChatView
-      let currentUID = Auth.auth().currentUser?.uid ?? ""
+      let currentUID = LoginService.shared.getCurrentUID() ?? ""
       let otherUID = "bHRyshjwUTewIjApF9b5CVbDIAg2"
       let chatID = generateChatID(currentUID: currentUID, otherUID: otherUID)
       NavigationView()
         .previewDisplayName("TabView with ChatListView")
-//      ChatView(chatID: chatID)
     } else {
       VStack(spacing: 16) {
         Text(isLogin ? "Login" : "Sign Up")
@@ -70,9 +59,7 @@ struct LoginView: View {
             .cornerRadius(8)
         }
         
-        Button(action: {
-          isLogin.toggle()
-        }) {
+        Button(action: { isLogin.toggle() }) {
           Text(isLogin ? "Don’t have an account? Sign Up" :
                 "Already have an account? Login")
           .foregroundColor(.blue)
@@ -80,15 +67,13 @@ struct LoginView: View {
       }
       .padding()
       .onAppear {
-        if Auth.auth().currentUser != nil {
-          isSignedIn = true
-        }
+        isSignedIn = LoginService.shared.isUserSignedIn()
       }
     }
   }
   
   private func generateChatID(currentUID: String, otherUID: String) -> String {
-    return [currentUID, otherUID].sorted().joined(separator: "_")
+    [currentUID, otherUID].sorted().joined(separator: "_")
   }
   
   private func signUp() {
@@ -97,50 +82,30 @@ struct LoginView: View {
       return
     }
     
-    Auth.auth().createUser(withEmail: email, password: password) { result, error in
-      if let error = error {
+    LoginService.shared.signUp(name: name, username: username, email: email, password: password) { result in
+      switch result {
+      case .success:
+        isSignedIn = true
+      case .failure(let error):
         errorMessage = error.localizedDescription
-        return
-      }
-      
-      guard let uid = result?.user.uid else {
-        errorMessage = "Unable to get user ID"
-        return
-      }
-      
-      // Create Firestore user document
-      let db = Firestore.firestore()
-      let userData: [String: Any] = [
-        "uid": uid,
-        "name": name,
-        "username": username,
-        "email": email,
-        "createdAt": Timestamp()
-      ]
-      
-      db.collection("users").document(uid).setData(userData) { error in
-        if let error = error {
-          errorMessage = "Failed to save user data: \(error.localizedDescription)"
-        } else {
-          isSignedIn = true
-        }
       }
     }
   }
   
   private func signIn() {
-    Auth.auth().signIn(withEmail: email, password: password) { result, error in
-      if let error = error {
-        errorMessage = error.localizedDescription
-      } else {
+    LoginService.shared.signIn(email: email, password: password) { result in
+      switch result {
+      case .success:
         isSignedIn = true
+      case .failure(let error):
+        errorMessage = error.localizedDescription
       }
     }
   }
   
   func signOut() {
     do {
-      try Auth.auth().signOut()
+      try LoginService.shared.signOut()
       isSignedIn = false
     } catch {
       print("Error signing out: \(error.localizedDescription)")
