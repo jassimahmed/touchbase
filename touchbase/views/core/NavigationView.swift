@@ -19,7 +19,7 @@ struct NavigationView: View {
         if isLoadingUser {
           ProgressView("Loading profile…")
         } else if let user = currentUser {
-          ProfileView(user: user, isCurrentUser: true)
+          ProfileView(user: user)
         } else {
           Text("No logged-in user found")
             .foregroundStyle(.secondary)

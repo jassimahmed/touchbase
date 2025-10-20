@@ -10,11 +10,15 @@ import FirebaseAuth
 
 struct ProfileView: View {
   let user: User        // The user being displayed
-  let isCurrentUser: Bool
   
   @State private var isFriendAdded = false
   @State private var showLoginView = false
   @State private var showNotifications = false
+  
+  private var isCurrentUser: Bool {
+    guard let currentUserId = Auth.auth().currentUser?.uid else { return false }
+    return currentUserId == user.id
+  }
   
   var body: some View {
     VStack(spacing: 20) {
@@ -36,11 +40,9 @@ struct ProfileView: View {
           .foregroundStyle(.secondary)
       }
       
-      // Add Friend button (only if viewing someone else)
-      if !isCurrentUser {
-        AddRelationshipButton(user: user)
-      } else {
-        // Sign Out Button (only for current user)
+      // MARK: - Conditional Buttons
+      if isCurrentUser {
+        // Sign Out Button (for current user)
         Button(action: signOut) {
           Text("Sign Out")
             .font(.headline)
@@ -52,6 +54,9 @@ struct ProfileView: View {
             .shadow(radius: 3)
         }
         .padding(.horizontal)
+      } else {
+        // Add Friend button (for other users)
+        AddRelationshipButton(user: user)
       }
       
       Spacer()
@@ -59,7 +64,6 @@ struct ProfileView: View {
     .padding()
     .navigationTitle(user.name)
     .navigationBarTitleDisplayMode(.inline)
-    // MARK: - Toolbar Button
     .toolbar {
       if isCurrentUser {
         ToolbarItem(placement: .navigationBarTrailing) {
@@ -72,7 +76,6 @@ struct ProfileView: View {
         }
       }
     }
-    // MARK: - Navigation to Notifications
     .navigationDestination(isPresented: $showNotifications) {
       NotificationView()
     }
@@ -93,7 +96,6 @@ struct ProfileView: View {
 
 #Preview {
   ProfileView(
-    user: User(id: "1", name: "John Doe", username: "johndoe"),
-    isCurrentUser: true
+    user: User(id: "1", name: "John Doe", username: "johndoe")
   )
 }

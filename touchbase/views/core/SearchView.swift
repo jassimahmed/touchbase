@@ -16,7 +16,7 @@ struct SearchView: View {
             .foregroundStyle(.secondary)
         } else {
           List(users) { user in
-            NavigationLink(destination: ProfileView(user: user, isCurrentUser: false)) {
+            NavigationLink(destination: ProfileView(user: user)) {
               HStack(spacing: 12) {
                 Image(systemName: "person.crop.circle.fill")
                   .resizable()
