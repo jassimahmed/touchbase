@@ -217,5 +217,4 @@ struct UserConnectionService {
       }
     }
   }
-  
 }
