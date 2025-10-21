@@ -63,6 +63,9 @@ final class LoginService {
   /// Sign out current user
   func signOut() throws {
     try Auth.auth().signOut()
+    
+    ConnectionCache.shared.clear()
+    UserCache.shared.clear()
   }
   
   /// Check if user is already signed in

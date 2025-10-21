@@ -74,6 +74,8 @@ struct UserConnectionService {
   
   static func fetchUserConnections(for userId: String, completion: @escaping (Result<[Connection], Error>) -> Void) {
     
+    LOGGER.debug("fetchUserConnections called")
+    
     db.collection("connections")
       .whereFilter(
         Filter.orFilter([
@@ -106,11 +108,10 @@ struct UserConnectionService {
           )
         } ?? []
         
-        LOGGER.debug("fetchUserConnections(): connections: \(connections)")
-        
         ConnectionCache.shared.updateConnections(connections)
         
-        LOGGER.debug("ConnectionCache array \(ConnectionCache.shared.connections)")
+        cacheAcceptedConnectionUsersAsync(for: userId, from: connections)
+        
         completion(.success(connections))
       }
   }
@@ -147,13 +148,13 @@ struct UserConnectionService {
             } else {
               // Update cache immediately
               var updatedConnections = ConnectionCache.shared.connections
+              
               if let index = updatedConnections.firstIndex(where: { $0.id == doc.documentID }) {
                 updatedConnections[index].status = "accepted"
               } else {
                 // If it wasn’t in cache, add it freshly
                 let data = doc.data()
                 if let type = data["type"] as? String,
-                   let type = data["type"] as? String,
                    let timestamp = (data["timestamp"] as? Timestamp)?.dateValue() {
                   let newConn = Connection(
                     id: doc.documentID,
@@ -166,7 +167,9 @@ struct UserConnectionService {
                   updatedConnections.append(newConn)
                 }
               }
+              
               ConnectionCache.shared.updateConnections(updatedConnections)
+              cacheAcceptedConnectionUsersAsync(for: currentUserId, from: updatedConnections)
               completion(true)
             }
           }
@@ -215,6 +218,74 @@ struct UserConnectionService {
         
         completion(true)
       }
+    }
+  }
+  
+  private static func cacheAcceptedConnectionUsersAsync(for userId: String, from connections: [Connection]) {
+      DispatchQueue.global(qos: .background).async {
+        cacheAcceptedConnectionUsers(for: userId, from: connections)
+      }
+  }
+  
+  private static func cacheAcceptedConnectionUsers(for currentUserId: String, from connections: [Connection]) {
+    let acceptedUserIds = connections
+      .filter { $0.status == "accepted" }
+      .flatMap { [$0.fromUserId, $0.toUserId] }
+      .filter { $0 != currentUserId }
+      .unique()
+
+    guard !acceptedUserIds.isEmpty else { return }
+
+    let db = Firestore.firestore()
+    let group = DispatchGroup()
+    var fetchedUsers: [User] = []
+
+    let chunks = acceptedUserIds.chunked(into: 10)
+
+    for chunk in chunks {
+      group.enter()
+      db.collection("users")
+        .whereField(FieldPath.documentID(), in: chunk)
+        .getDocuments { snapshot, error in
+          defer { group.leave() }
+
+          if let error = error {
+            print("Error fetching user chunk: \(error.localizedDescription)")
+            return
+          }
+
+          let users = snapshot?.documents.compactMap { doc -> User? in
+            let data = doc.data()
+            guard let name = data["name"] as? String,
+                  let username = data["username"] as? String else { return nil }
+            return User(id: doc.documentID, name: name, username: username)
+          } ?? []
+
+          fetchedUsers.append(contentsOf: users)
+        }
+    }
+
+    group.notify(queue: .global(qos: .background)) {
+      if !fetchedUsers.isEmpty {
+        UserCache.shared.updateUsers(fetchedUsers)
+        LOGGER.debug("cacheAcceptedConnectionUsers cached users \(UserCache.shared.users)")
+      }
+    }
+  }
+
+}
+
+private extension Array where Element: Hashable {
+  func unique() -> [Element] {
+    var seen = Set<Element>()
+    return filter { seen.insert($0).inserted }
+  }
+}
+
+private extension Array {
+  func chunked(into size: Int) -> [[Element]] {
+    stride(from: 0, to: count, by: size).map {
+      Array(self[$0 ..< Swift.min($0 + size, count)])
     }
   }
 }

@@ -46,8 +46,8 @@
             filePath = "touchbase/Models/User.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "12"
-            endingLineNumber = "12"
+            startingLineNumber = "21"
+            endingLineNumber = "21"
             landmarkName = "User"
             landmarkType = "14">
          </BreakpointContent>
