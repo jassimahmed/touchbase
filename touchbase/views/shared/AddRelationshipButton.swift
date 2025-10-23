@@ -131,13 +131,9 @@ struct AddRelationshipButton: View {
   
   private func checkConnectionStatus() {
     guard let currentUserId = currentUserId else { return }
-    
-    LOGGER.debug("checkConnectionStatus() called")
-    
+        
     let cache = ConnectionCache.shared.connections
-    
-    LOGGER.debug("checkConnectionStatus() ConnectionCache \(cache)")
-    
+        
     if let sentConn = cache.first(where: { $0.fromUserId == currentUserId && $0.toUserId == user.id && $0.status == "pending" }) {
       requestStatus = "sent"
       requestType = sentConn.type

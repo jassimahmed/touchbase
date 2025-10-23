@@ -110,6 +110,7 @@ struct UserConnectionService {
         
         ConnectionCache.shared.updateConnections(connections)
         
+        
         cacheAcceptedConnectionUsersAsync(for: userId, from: connections)
         
         completion(.success(connections))
@@ -268,7 +269,7 @@ struct UserConnectionService {
     group.notify(queue: .global(qos: .background)) {
       if !fetchedUsers.isEmpty {
         UserCache.shared.updateUsers(fetchedUsers)
-        LOGGER.debug("cacheAcceptedConnectionUsers cached users \(UserCache.shared.users)")
+//        LOGGER.debug("cacheAcceptedConnectionUsers cached users \(UserCache.shared.users)")
       }
     }
   }

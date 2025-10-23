@@ -16,8 +16,8 @@ final class UserCache {
   
   private(set) var users: [User] = []
   
-  private let userDefaultsKey = "usersCache"
-  
+  private let fileName = "usersCache.json"
+
   func updateUsers(_ newUsers: [User]) {
     let allUsers = Set(users).union(newUsers)
     users = Array(allUsers)
@@ -37,7 +37,7 @@ final class UserCache {
     users.removeAll()
     saveToDisk()
   }
-    
+  
   func getUser(by id: String) -> User? {
     return users.first(where: { $0.id == id })
   }
@@ -46,26 +46,31 @@ final class UserCache {
     return users.contains(where: { $0.id == id })
   }
   
+  private func getFileURL() -> URL {
+    let cacheDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+    return cacheDir.appendingPathComponent(fileName)
+  }
+  
   private func saveToDisk() {
     do {
       let data = try JSONEncoder().encode(users)
-      UserDefaults.standard.set(data, forKey: userDefaultsKey)
-      UserDefaults.standard.synchronize()
+      let url = getFileURL()
+      try data.write(to: url, options: .atomic)
+      LOGGER.debug("Saved to disk with data: \(data) and url: \(url)")
     } catch {
-      print("Error saving users to disk: \(error)")
+      LOGGER.error("Error saving users to disk: \(error)")
     }
   }
   
   private func loadFromDisk() {
-    guard let data = UserDefaults.standard.data(forKey: userDefaultsKey) else {
-      users = []
-      return
-    }
+    let url = getFileURL()
     do {
+      let data = try Data(contentsOf: url)
       users = try JSONDecoder().decode([User].self, from: data)
+      LOGGER.debug("Loaded from disk")
     } catch {
-      print("Error loading users from disk: \(error)")
       users = []
+      LOGGER.error("Error loading users from disk: \(error)")
     }
   }
 }

@@ -7,20 +7,58 @@
 
 import SwiftUI
 import FirebaseAuth
+import os
 
 struct ProfileView: View {
   let user: User
   
+  private let currentUserId: String
+  
   @State private var showLoginView = false
   @State private var showNotifications = false
-  @State private var selectedTab = "Family"  // Default tab for current user
+  @State private var selectedTab: String?
   
-  private var isCurrentUser: Bool {
-    guard let currentUserId = Auth.auth().currentUser?.uid else { return false }
-    return currentUserId == user.id
+  private var familyConnections: [User] {
+    ConnectionCache.shared.getFamily(for: currentUserId)
   }
   
-  private let tabs = ["Family", "Friends", "Colleagues", "Photos"]
+  private var friendConnections: [User] {
+    ConnectionCache.shared.getFriend(for: currentUserId)
+  }
+  
+  private var colleagueConnections: [User] {
+    ConnectionCache.shared.getColleague(for: currentUserId)
+  }
+  
+  // Tabs that actually have data
+  private var availableTabs: [String] {
+    var tabs: [String] = []
+    if !familyConnections.isEmpty { tabs.append("Family") }
+    if !friendConnections.isEmpty { tabs.append("Friends") }
+    if !colleagueConnections.isEmpty { tabs.append("Colleagues") }
+    return tabs
+  }
+  
+  private var isCurrentUser: Bool {
+    currentUserId == user.id
+  }
+  
+  init(user: User) {
+    self.user = user
+    self.currentUserId = Auth.auth().currentUser?.uid ?? "Show error page"
+    
+    let family = !ConnectionCache.shared.getFamily(for: currentUserId).isEmpty
+    let friends = !ConnectionCache.shared.getFriend(for: currentUserId).isEmpty
+    let colleagues = !ConnectionCache.shared.getColleague(for: currentUserId).isEmpty
+    
+    if family {
+      _selectedTab = State(initialValue: "Family")
+    } else if friends {
+      _selectedTab = State(initialValue: "Friends")
+    } else if colleagues {
+      _selectedTab = State(initialValue: "Colleagues")
+    }
+  }
   
   var body: some View {
     VStack(spacing: 20) {
@@ -58,29 +96,26 @@ struct ProfileView: View {
         AddRelationshipButton(user: user)
       }
       
-      // MARK: - Tabs (only for current user)
-      if isCurrentUser {
+      // MARK: - Tabs for connections
+      if isCurrentUser && !availableTabs.isEmpty {
         VStack {
           Picker("Select Tab", selection: $selectedTab) {
-            ForEach(tabs, id: \.self) { tab in
-              Text(tab).tag(tab)
+            ForEach(availableTabs, id: \.self) { tab in
+              Text(tab).tag(tab as String?)
             }
           }
           .pickerStyle(.segmented)
           .padding(.horizontal)
           .padding(.top, 10)
           
-          // Tab content
           Group {
             switch selectedTab {
             case "Family":
-              FamilyTabView()
+              ConnectionListView(users: familyConnections)
             case "Friends":
-              FriendsTabView()
+              ConnectionListView(users: friendConnections)
             case "Colleagues":
-              ColleaguesTabView()
-            case "Photos":
-              PhotosTabView()
+              ConnectionListView(users: colleagueConnections)
             default:
               EmptyView()
             }
@@ -123,56 +158,26 @@ struct ProfileView: View {
   }
 }
 
-// MARK: - Placeholder Tab Views
-
-struct FamilyTabView: View {
+struct ConnectionListView: View {
+  let users: [User]
+  
   var body: some View {
-    VStack {
-      Text("Family connections will appear here.")
+    if users.isEmpty {
+      Text("No connections yet.")
         .foregroundStyle(.secondary)
         .padding()
-      Spacer()
+    } else {
+      List(users, id: \.id) { user in
+        VStack(alignment: .leading, spacing: 2) {
+          Text(user.name)
+            .font(.body)
+          Text("@\(user.username)")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 4)
+      }
+      .listStyle(.plain)
     }
-  }
-}
-
-struct FriendsTabView: View {
-  var body: some View {
-    VStack {
-      Text("Friends connections will appear here.")
-        .foregroundStyle(.secondary)
-        .padding()
-      Spacer()
-    }
-  }
-}
-
-struct ColleaguesTabView: View {
-  var body: some View {
-    VStack {
-      Text("Colleagues connections will appear here.")
-        .foregroundStyle(.secondary)
-        .padding()
-      Spacer()
-    }
-  }
-}
-
-struct PhotosTabView: View {
-  var body: some View {
-    VStack {
-      Text("Your photos will appear here.")
-        .foregroundStyle(.secondary)
-        .padding()
-      Spacer()
-    }
-  }
-}
-
-#Preview {
-  NavigationStack {
-    ProfileView(
-      user: User(id: "1", name: "John Doe", username: "johndoe")
-    )
   }
 }
