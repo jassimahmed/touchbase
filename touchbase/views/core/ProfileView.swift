@@ -157,27 +157,3 @@ struct ProfileView: View {
     }
   }
 }
-
-struct ConnectionListView: View {
-  let users: [User]
-  
-  var body: some View {
-    if users.isEmpty {
-      Text("No connections yet.")
-        .foregroundStyle(.secondary)
-        .padding()
-    } else {
-      List(users, id: \.id) { user in
-        VStack(alignment: .leading, spacing: 2) {
-          Text(user.name)
-            .font(.body)
-          Text("@\(user.username)")
-            .font(.caption)
-            .foregroundStyle(.secondary)
-        }
-        .padding(.vertical, 4)
-      }
-      .listStyle(.plain)
-    }
-  }
-}
