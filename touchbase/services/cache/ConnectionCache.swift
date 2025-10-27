@@ -6,22 +6,41 @@
 //
 
 import Foundation
+import Combine
 
-final class ConnectionCache {
+final class ConnectionCache: ObservableObject {
   static let shared = ConnectionCache()
   
   private init() {
     loadFromDisk()
   }
   
-  private(set) var connections: [Connection] = []
+  @Published private(set) var connections: [Connection] = []
   
   private let cachFilename = "connectionsCache.json"
   
   func updateConnections(_ newConnections: [Connection]) {
-    LOGGER.debug("updateConnections is called with connections: \(newConnections)")
-    connections = newConnections
+    let allConnections = Set(connections).union(newConnections)
+    connections = Array(allConnections)
     saveToDisk()
+  }
+  
+  func acceptConnection(withId id: String) {
+    guard let index = connections.firstIndex(where: { $0.id == id }) else {
+      // todo - throw excpeiont here
+      return
+    }
+    connections[index].status = "accepted"
+    saveToDisk()
+  }
+  
+  func deleteConnection(withId id: String) {
+      guard let index = connections.firstIndex(where: { $0.id == id }) else {
+          // TODO: throw an exception or handle error if needed
+          return
+      }
+      connections.remove(at: index)
+      saveToDisk()
   }
   
   func clear() {
@@ -29,10 +48,14 @@ final class ConnectionCache {
     saveToDisk()
   }
   
+  func isConnected(with userId: String) -> Bool {
+    return connections.contains { conn in
+      (conn.fromUserId == userId || conn.toUserId == userId) && conn.status == "accepted"
+    }
+  }
+  
   func getFamily(for currentUserId: String) -> [User] {
-    let family = getConnections(for: currentUserId, type: "Family")
-    LOGGER.debug("getFamily is called: \(family)")
-    return family
+    return getConnections(for: currentUserId, type: "Family")
   }
   
   func getFriend(for currentUserId: String) -> [User] {
@@ -43,18 +66,11 @@ final class ConnectionCache {
     getConnections(for: currentUserId, type: "Colleague")
   }
   
-  func isConnected(with userId: String) -> Bool {
-    return connections.contains { conn in
-      (conn.fromUserId == userId || conn.toUserId == userId) && conn.status == "accepted"
-    }
-  }
-  
   private func saveToDisk() {
     do {
       let data = try JSONEncoder().encode(connections)
       let url = getFileURL()
       try data.write(to: url, options: .atomic)
-//      LOGGER.debug("Saved to disk with data: \(data) and url: \(url)")
     } catch {
       LOGGER.error("Error saving connections to disk: \(error)")
     }
@@ -65,7 +81,6 @@ final class ConnectionCache {
     do {
       let data = try Data(contentsOf: url)
       connections = try JSONDecoder().decode([Connection].self, from: data)
-//      LOGGER.debug("Loaded from disk")
     } catch {
       LOGGER.error("Error loading connections from disk: \(error)")
       connections = []
@@ -78,7 +93,7 @@ final class ConnectionCache {
   }
   
   private func getConnections(for currentUserId: String, type: String) -> [User] {
-    LOGGER.debug("getconnections for user \(currentUserId): type \(type): connectionsCache: \(ConnectionCache.shared.connections): UserCace: \(UserCache.shared.users)")
+    LOGGER.info("getconnections for user \(currentUserId): type \(type): connectionsCache: \(ConnectionCache.shared.connections): UserCace: \(UserCache.shared.users)")
     let users = ConnectionCache.shared.connections
       .filter { connection in
         return connection.status == "accepted"
@@ -87,12 +102,11 @@ final class ConnectionCache {
       }
       .compactMap { connection in
         let otherUserId = (connection.fromUserId == currentUserId) ? connection.toUserId : connection.fromUserId
-        LOGGER.debug("otherUserId: '\(otherUserId)'")
+        LOGGER.info("getConnections otherUserId: '\(otherUserId)'")
         return UserCache.shared.getUser(by: otherUserId)
       }
     
-    
-    LOGGER.debug("filtered users \(users)")
+    LOGGER.info("getConnections filtered users \(users)")
     return users
   }
 }

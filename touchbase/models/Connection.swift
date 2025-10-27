@@ -8,7 +8,7 @@
 import Foundation
 import FirebaseFirestore
 
-struct Connection: Identifiable, Codable {
+struct Connection: Identifiable, Hashable, Codable {
     var id: String? // Firestore document ID
     let fromUserId: String
     let toUserId: String

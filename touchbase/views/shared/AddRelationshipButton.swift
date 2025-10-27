@@ -15,6 +15,7 @@ struct AddRelationshipButton: View {
   @State private var isExpanded = false
   @State private var requestStatus: String? = nil   // "sent", "received", or nil
   @State private var requestType: String? = nil     // "Friend", "Family", etc.
+  @State private var connection: Connection? = nil
   
   // Convenience computed property for current user ID
   private var currentUserId: String? {
@@ -37,42 +38,27 @@ struct AddRelationshipButton: View {
             .disabled(true)
           
         case "received":
-          HStack(spacing: 10) {
-            Button("Accept") {
-              guard let currentUserId = currentUserId else { return }
-              UserConnectionService.acceptConnectionRequest(fromUserId: user.id) { success in
-                if success {
-                  ConnectionCache.shared.updateConnections(
-                    ConnectionCache.shared.connections.map {
-                      var updated = $0
-                      if $0.fromUserId == user.id && $0.toUserId == currentUserId {
-                        updated.status = "accepted"
-                      }
-                      return updated
-                    }
-                  )
-                  requestStatus = nil
+          if let connection = connection {
+            HStack(spacing: 10) {
+              Button("Accept") {
+                UserConnectionService.acceptConnectionRequest(connection: connection) { success in
+                  if success {
+                    requestStatus = nil
+                  }
                 }
               }
-            }
-            .buttonStyle(AddChoiceStyle(color: .green))
-            
-            Button("Delete") {
-              guard let currentUserId = currentUserId else { return }
-              UserConnectionService.deleteConnectionRequest(fromUserId: user.id) { success in
-                if success {
-                  ConnectionCache.shared.updateConnections(
-                    ConnectionCache.shared.connections.filter {
-                      !($0.fromUserId == user.id && $0.toUserId == currentUserId)
-                    }
-                  )
-                  requestStatus = nil
+              .buttonStyle(AddChoiceStyle(color: .green))
+              
+              Button("Delete") {
+                UserConnectionService.deleteConnectionRequest(connection: connection) { success in
+                  if success {
+                    requestStatus = nil
+                  }
                 }
               }
+              .buttonStyle(AddChoiceStyle(color: .red))
             }
-            .buttonStyle(AddChoiceStyle(color: .red))
           }
-          
         default:
           EmptyView()
         }
@@ -131,58 +117,46 @@ struct AddRelationshipButton: View {
   
   private func checkConnectionStatus() {
     guard let currentUserId = currentUserId else { return }
-        
+    
     let cache = ConnectionCache.shared.connections
-        
+    
     if let sentConn = cache.first(where: { $0.fromUserId == currentUserId && $0.toUserId == user.id && $0.status == "pending" }) {
       requestStatus = "sent"
       requestType = sentConn.type
+      connection = sentConn
     } else if let receivedConn = cache.first(where: { $0.toUserId == currentUserId && $0.fromUserId == user.id && $0.status == "pending" }) {
       requestStatus = "received"
       requestType = receivedConn.type
+      connection = receivedConn
     }
   }
   
   private func sendRequest(type: String) {
-    guard let currentUserId = currentUserId else { return }
-    
     UserConnectionService.sendConnectionRequest(toUserId: user.id, type: type) { success in
       if success {
         requestStatus = "sent"
         requestType = type
-        
-        // Update cache
-        var cache = ConnectionCache.shared.connections
-        let newConn = Connection(
-          fromUserId: currentUserId,
-          toUserId: user.id,
-          type: type,
-          status: "pending",
-          timestamp: Date()
-        )
-        cache.append(newConn)
-        ConnectionCache.shared.updateConnections(cache)
+        isExpanded = false
       }
     }
-    isExpanded = false
   }
   
   private func existingConnectionType() -> String? {
     guard let currentUserId = currentUserId else { return nil }
-        
-        // Get all accepted connections with this user
-        let connections = ConnectionCache.shared.connections.filter {
-            ($0.fromUserId == currentUserId && $0.toUserId == user.id) ||
-            ($0.toUserId == currentUserId && $0.fromUserId == user.id)
-        }.filter { $0.status == "accepted" }
-        
-        // Print for debugging
-        for conn in connections {
-            print("Connection: from \(conn.fromUserId) to \(conn.toUserId), type: \(conn.type), status: \(conn.status)")
-        }
-        
-        // Return the first type, as before
-        return connections.first?.type
+    
+    // Get all accepted connections with this user
+    let connections = ConnectionCache.shared.connections.filter {
+      ($0.fromUserId == currentUserId && $0.toUserId == user.id) ||
+      ($0.toUserId == currentUserId && $0.fromUserId == user.id)
+    }.filter { $0.status == "accepted" }
+    
+    // Print for debugging
+    for conn in connections {
+      print("Connection: from \(conn.fromUserId) to \(conn.toUserId), type: \(conn.type), status: \(conn.status)")
+    }
+    
+    // Return the first type, as before
+    return connections.first?.type
   }
   
   private func colorForType(_ type: String) -> Color {
@@ -218,3 +192,4 @@ struct AddChoiceStyle: ButtonStyle {
       .shadow(radius: 2)
   }
 }
+

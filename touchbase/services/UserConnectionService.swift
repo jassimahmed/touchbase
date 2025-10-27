@@ -29,16 +29,18 @@ struct UserConnectionService {
     )
     
     do {
-      _ = try db.collection("connections").addDocument(from: connection) { error in
-        if let error = error {
-          print("Error sending connection request: \(error.localizedDescription)")
-          completion(false)
-        } else {
-          completion(true)
+      let ref = try db.collection("connections").addDocument(from: connection) { error in
+        guard error == nil else {
+          print("❌ Firestore error: \(error!.localizedDescription)")
+          return completion(false)
         }
       }
+      var updatedConnection = connection
+      updatedConnection.id = ref.documentID
+      ConnectionCache.shared.updateConnections([updatedConnection])
+      completion(true)
     } catch {
-      print("Encoding error: \(error.localizedDescription)")
+      print("❌ Encoding error: \(error.localizedDescription)")
       completion(false)
     }
   }
@@ -49,23 +51,8 @@ struct UserConnectionService {
       .whereField("toUserId", isEqualTo: userId)
       .whereField("status", isEqualTo: "pending")
       .getDocuments { snapshot, error in
-        let connections = snapshot?.documents.compactMap { doc -> Connection? in
-          let data = doc.data()
-          guard let fromUserId = data["fromUserId"] as? String,
-                let type = data["type"] as? String,
-                let status = data["status"] as? String,
-                let timestamp = (data["timestamp"] as? Timestamp)?.dateValue() else {
-            return nil
-          }
-          
-          return Connection(
-            id: doc.documentID,
-            fromUserId: fromUserId,
-            toUserId: userId,
-            type: type,
-            status: status,
-            timestamp: timestamp
-          )
+        let connections = snapshot?.documents.compactMap {
+          mapDocumentToConnection($0)
         } ?? []
         
         completion(connections)
@@ -73,9 +60,6 @@ struct UserConnectionService {
   }
   
   static func fetchUserConnections(for userId: String, completion: @escaping (Result<[Connection], Error>) -> Void) {
-    
-    LOGGER.debug("fetchUserConnections called")
-    
     db.collection("connections")
       .whereFilter(
         Filter.orFilter([
@@ -89,191 +73,123 @@ struct UserConnectionService {
           return
         }
         
-        let connections = snapshot?.documents.compactMap { doc -> Connection? in
-          let data = doc.data()
-          guard let fromUserId = data["fromUserId"] as? String,
-                let toUserId = data["toUserId"] as? String,
-                let type = data["type"] as? String,
-                let status = data["status"] as? String,
-                let timestamp = (data["timestamp"] as? Timestamp)?.dateValue() else {
-            return nil
-          }
-          return Connection(
-            id: doc.documentID,
-            fromUserId: fromUserId,
-            toUserId: toUserId,
-            type: type,
-            status: status,
-            timestamp: timestamp
-          )
+        let connections = snapshot?.documents.compactMap {
+          mapDocumentToConnection($0)
         } ?? []
         
         ConnectionCache.shared.updateConnections(connections)
         
-        
-        cacheAcceptedConnectionUsersAsync(for: userId, from: connections)
+        cacheAcceptedConnectionUsersAsync(from: connections)
         
         completion(.success(connections))
       }
   }
   
-  static func acceptConnectionRequest(fromUserId: String, completion: @escaping (Bool) -> Void) {
-    guard let currentUserId = Auth.auth().currentUser?.uid else {
+  static func acceptConnectionRequest(connection: Connection, completion: @escaping (Bool) -> Void) {
+    guard let connectionId = connection.id else {
       completion(false)
       return
     }
     
-    db.collection("connections")
-      .whereField("fromUserId", isEqualTo: fromUserId)
-      .whereField("toUserId", isEqualTo: currentUserId)
-      .whereField("status", isEqualTo: "pending")
-      .getDocuments { snapshot, error in
-        if let error = error {
-          print("Error finding connection request: \(error.localizedDescription)")
+    db.collection("connections").document(connectionId)
+      .updateData(["status": "accepted"]) { error in
+        if error != nil {
           completion(false)
           return
         }
+        ConnectionCache.shared.acceptConnection(withId: connectionId)
         
-        guard let doc = snapshot?.documents.first else {
-          print("No pending connection request found.")
-          completion(false)
-          return
-        }
-        
-        // Update the status to "accepted"
-        db.collection("connections").document(doc.documentID)
-          .updateData(["status": "accepted"]) { error in
-            if let error = error {
-              print("Error updating connection status: \(error.localizedDescription)")
-              completion(false)
-            } else {
-              // Update cache immediately
-              var updatedConnections = ConnectionCache.shared.connections
-              
-              if let index = updatedConnections.firstIndex(where: { $0.id == doc.documentID }) {
-                updatedConnections[index].status = "accepted"
-              } else {
-                // If it wasn’t in cache, add it freshly
-                let data = doc.data()
-                if let type = data["type"] as? String,
-                   let timestamp = (data["timestamp"] as? Timestamp)?.dateValue() {
-                  let newConn = Connection(
-                    id: doc.documentID,
-                    fromUserId: fromUserId,
-                    toUserId: currentUserId,
-                    type: type,
-                    status: "accepted",
-                    timestamp: timestamp
-                  )
-                  updatedConnections.append(newConn)
-                }
-              }
-              
-              ConnectionCache.shared.updateConnections(updatedConnections)
-              cacheAcceptedConnectionUsersAsync(for: currentUserId, from: updatedConnections)
-              completion(true)
-            }
-          }
-      }
-  }
-  
-  static func deleteConnectionRequest(fromUserId: String, completion: @escaping (Bool) -> Void) {
-    guard let currentUserId = Auth.auth().currentUser?.uid else {
-      completion(false)
-      return
-    }
-    
-    db.collection("connections")
-      .whereField("fromUserId", isEqualTo: fromUserId)
-      .whereField("toUserId", isEqualTo: currentUserId)
-      .whereField("status", isEqualTo: "pending")
-      .getDocuments { snapshot, error in
-        if let error = error {
-          print("Error finding connection request to delete: \(error.localizedDescription)")
-          completion(false)
-          return
-        }
-        
-        guard let doc = snapshot?.documents.first else {
-          print("No pending connection request found to delete.")
-          completion(false)
-          return
-        }
-        
-        deleteDoc(doc, completion: completion)
-      }
-  }
-  
-  static func deleteDoc(_ doc: QueryDocumentSnapshot, completion: @escaping (Bool) -> Void) {
-    // Delete the Firestore document
-    db.collection("connections").document(doc.documentID).delete { error in
-      if let error = error {
-        print("Error deleting connection request: \(error.localizedDescription)")
-        completion(false)
-      } else {
-        // Update local cache
-        let updatedConnections = ConnectionCache.shared.connections.filter {
-          $0.id != doc.documentID
-        }
-        ConnectionCache.shared.updateConnections(updatedConnections)
-        
+        var acceptedConnection = connection
+        acceptedConnection.status = "accepted"
+        cacheAcceptedConnectionUsersAsync(from: [acceptedConnection])
         completion(true)
       }
+  }
+  
+  static func deleteConnectionRequest(connection: Connection, completion: @escaping (Bool) -> Void) {
+    guard let connectionId = connection.id else {
+      completion(false)
+      return
+    }
+    
+    db.collection("connections").document(connectionId).delete { error in
+      if error != nil {
+        completion(false)
+        return
+      }
+      ConnectionCache.shared.deleteConnection(withId: connectionId)
+      completion(true)
     }
   }
   
-  private static func cacheAcceptedConnectionUsersAsync(for userId: String, from connections: [Connection]) {
-      DispatchQueue.global(qos: .background).async {
-        cacheAcceptedConnectionUsers(for: userId, from: connections)
-      }
+  private static func mapDocumentToConnection(_ doc: DocumentSnapshot) -> Connection? {
+    guard let data = doc.data(),
+          let fromUserId = data["fromUserId"] as? String,
+          let toUserId = data["toUserId"] as? String,
+          let type = data["type"] as? String,
+          let status = data["status"] as? String,
+          let timestamp = (data["timestamp"] as? Timestamp)?.dateValue() else {
+      return nil
+    }
+    
+    return Connection(
+      id: doc.documentID,
+      fromUserId: fromUserId,
+      toUserId: toUserId,
+      type: type,
+      status: status,
+      timestamp: timestamp
+    )
   }
   
-  private static func cacheAcceptedConnectionUsers(for currentUserId: String, from connections: [Connection]) {
+  private static func cacheAcceptedConnectionUsersAsync(from connections: [Connection]) {
+    DispatchQueue.global(qos: .background).async {
+      cacheAcceptedConnectionUsers(from: connections)
+    }
+  }
+  
+  private static func cacheAcceptedConnectionUsers(from connections: [Connection]) {
     let acceptedUserIds = connections
       .filter { $0.status == "accepted" }
       .flatMap { [$0.fromUserId, $0.toUserId] }
-      .filter { $0 != currentUserId }
       .unique()
-
+    
     guard !acceptedUserIds.isEmpty else { return }
-
-    let db = Firestore.firestore()
+    
     let group = DispatchGroup()
     var fetchedUsers: [User] = []
-
+    
     let chunks = acceptedUserIds.chunked(into: 10)
-
+    
     for chunk in chunks {
       group.enter()
       db.collection("users")
         .whereField(FieldPath.documentID(), in: chunk)
         .getDocuments { snapshot, error in
           defer { group.leave() }
-
-          if let error = error {
-            print("Error fetching user chunk: \(error.localizedDescription)")
+        
+          if error != nil {
             return
           }
-
+          
           let users = snapshot?.documents.compactMap { doc -> User? in
             let data = doc.data()
             guard let name = data["name"] as? String,
                   let username = data["username"] as? String else { return nil }
             return User(id: doc.documentID, name: name, username: username)
           } ?? []
-
+          
           fetchedUsers.append(contentsOf: users)
         }
     }
-
+    
     group.notify(queue: .global(qos: .background)) {
       if !fetchedUsers.isEmpty {
         UserCache.shared.updateUsers(fetchedUsers)
-//        LOGGER.debug("cacheAcceptedConnectionUsers cached users \(UserCache.shared.users)")
       }
     }
   }
-
+  
 }
 
 private extension Array where Element: Hashable {

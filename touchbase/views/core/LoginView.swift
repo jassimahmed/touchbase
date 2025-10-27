@@ -102,13 +102,4 @@ struct LoginView: View {
       }
     }
   }
-  
-  func signOut() {
-    do {
-      try LoginService.shared.signOut()
-      isSignedIn = false
-    } catch {
-      print("Error signing out: \(error.localizedDescription)")
-    }
-  }
 }

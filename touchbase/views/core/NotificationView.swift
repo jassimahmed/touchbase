@@ -58,14 +58,14 @@ struct NotificationView: View {
     
     switch action {
     case "accept":
-      UserConnectionService.acceptConnectionRequest(fromUserId: fromUserId) { success in
+      UserConnectionService.acceptConnectionRequest(connection: request) { success in
         if success {
           requests.removeAll { $0.id == request.id }
         }
       }
       
     case "delete":
-      UserConnectionService.deleteConnectionRequest(fromUserId: fromUserId) { success in
+      UserConnectionService.deleteConnectionRequest(connection: request) { success in
         if success {
           requests.removeAll { $0.id == request.id }
         }

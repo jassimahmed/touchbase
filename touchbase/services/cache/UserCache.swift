@@ -56,7 +56,6 @@ final class UserCache {
       let data = try JSONEncoder().encode(users)
       let url = getFileURL()
       try data.write(to: url, options: .atomic)
-      LOGGER.debug("Saved to disk with data: \(data) and url: \(url)")
     } catch {
       LOGGER.error("Error saving users to disk: \(error)")
     }
@@ -67,7 +66,6 @@ final class UserCache {
     do {
       let data = try Data(contentsOf: url)
       users = try JSONDecoder().decode([User].self, from: data)
-      LOGGER.debug("Loaded from disk")
     } catch {
       users = []
       LOGGER.error("Error loading users from disk: \(error)")
