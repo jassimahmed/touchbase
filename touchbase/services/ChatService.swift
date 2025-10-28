@@ -78,9 +78,7 @@ class ChatService: ObservableObject {
   }
   
   func sendMessage(chatID: String, text: String) {
-    guard let currentUserID = Auth.auth().currentUser?.uid else {
-      return
-    }
+    guard let currentUserID = Auth.auth().currentUser?.uid else { return }
     
     let messageData: [String: Any] = [
       "senderID": currentUserID,
@@ -88,13 +86,28 @@ class ChatService: ObservableObject {
       "timestamp": Timestamp(date: Date())
     ]
     
-    db.collection("chats").document(chatID).collection("messages")
-      .addDocument(data: messageData) { error in
+    let messagesRef = db.collection("chats").document(chatID).collection("messages")
+    let chatRef = db.collection("chats").document(chatID)
+    
+    // Add the message
+    messagesRef.addDocument(data: messageData) { error in
+      if let error = error {
+        print("Error sending message: \(error)")
+        return
+      }
+      
+      // Update lastMessage and timestamp on the chat document
+      chatRef.updateData([
+        "lastMessage": text,
+        "timestamp": Timestamp(date: Date())
+      ]) { error in
         if let error = error {
-          print("Error sending message: \(error)")
+          print("Error updating chat metadata: \(error)")
         }
       }
+    }
   }
+  
   
   deinit {
     listener?.remove()
