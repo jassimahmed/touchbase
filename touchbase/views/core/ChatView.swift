@@ -9,7 +9,7 @@ import SwiftUI
 import FirebaseAuth
 
 struct ChatView: View {
-  @StateObject private var chatService = ChatService()
+  @StateObject private var messageService = MessageService()
   @State private var messageText = ""
   
   let chatID: String
@@ -19,7 +19,7 @@ struct ChatView: View {
       ScrollViewReader { scrollView in
         ScrollView {
           VStack(spacing: 8) {
-            ForEach(chatService.messages) { message in
+            ForEach(messageService.messages) { message in
               HStack {
                 if message.senderID == Auth.auth().currentUser?.uid {
                   Spacer()
@@ -40,8 +40,8 @@ struct ChatView: View {
           }
           .padding()
         }
-        .onChange(of: chatService.messages.count) { _ in
-          if let lastID = chatService.messages.last?.id {
+        .onChange(of: messageService.messages.count) { _ in
+          if let lastID = messageService.messages.last?.id {
             scrollView.scrollTo(lastID, anchor: .bottom)
           }
         }
@@ -53,14 +53,14 @@ struct ChatView: View {
         
         Button("Send") {
           guard !messageText.isEmpty else { return }
-          chatService.sendMessage(chatID: chatID, text: messageText)
+          messageService.sendMessage(chatID: chatID, text: messageText)
           messageText = ""
         }
       }
       .padding()
     }
     .onAppear {
-      chatService.observeMessages(chatID: chatID)
+      messageService.observeMessages(chatID: chatID)
     }
   }
 }

@@ -70,6 +70,7 @@ final class LoginService {
   
   /// Check if user is already signed in
   func isUserSignedIn() -> Bool {
+    // TODO: This is a bug here. If a user has a userId stored here in cache but it is deleted in the backend then the user is stuck forever. If the UID is not present in backend signOut the user. 
     return Auth.auth().currentUser != nil
   }
   
