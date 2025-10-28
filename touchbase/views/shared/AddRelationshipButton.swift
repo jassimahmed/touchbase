@@ -71,8 +71,8 @@ struct AddRelationshipButton: View {
           Text(existingType)
             .font(.subheadline.bold())
         }
-        .padding(.vertical, 6)
-        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .padding(.horizontal, 20)
         .background(colorForType(existingType).opacity(0.8))
         .foregroundStyle(.white)
         .cornerRadius(12)
