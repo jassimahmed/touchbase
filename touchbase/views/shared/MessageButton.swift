@@ -8,26 +8,42 @@
 import SwiftUI
 
 struct MessageButton: View {
-    let user: User
-    var onMessageTap: (() -> Void)? = nil
-
-    var body: some View {
-        Button {
-            onMessageTap?()
-        } label: {
-            HStack(spacing: 6) {
-                Image(systemName: "bubble.left.and.bubble.right.fill")
-                    .font(.caption)
-                Text("Message")
-                    .font(.subheadline.bold())
-            }
-            .padding(.vertical, 10)
-            .padding(.horizontal, 20)
-            .background(Color.blue.opacity(0.8))
-            .foregroundStyle(.white)
-            .cornerRadius(12)
-            .shadow(radius: 2)
+  let user: User
+  @StateObject private var chatService = ChatService()
+  @State private var navigateToChat = false
+  @State private var chatID: String?
+  
+  var body: some View {
+    Button {
+      chatService.createOrFetchChat(with: user.id) { id in
+        if let id = id {
+          self.chatID = id
+          self.navigateToChat = true
         }
-        .buttonStyle(.plain)
+      }
+    } label: {
+      HStack(spacing: 6) {
+        Image(systemName: "bubble.left.and.bubble.right.fill")
+          .font(.caption)
+        Text("Message")
+          .font(.subheadline.bold())
+      }
+      .padding(.vertical, 10)
+      .padding(.horizontal, 20)
+      .background(Color.blue.opacity(0.8))
+      .foregroundStyle(.white)
+      .cornerRadius(12)
+      .shadow(radius: 2)
     }
+    .buttonStyle(.plain)
+    .background(
+      NavigationLink(
+        destination: chatID.map { ChatView(chatID: $0) },
+        isActive: $navigateToChat
+      ) {
+        EmptyView()
+      }
+        .hidden()
+    )
+  }
 }
